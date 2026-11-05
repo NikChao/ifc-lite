@@ -1,5 +1,37 @@
 # @ifc-lite/renderer
 
+## 7.2.0
+
+### Minor Changes
+
+- [#8794](https://github.com/LTplus-AG/ifc-lite/pull/8794) [`b39b157`](https://github.com/LTplus-AG/ifc-lite/commit/b39b1578fd76588b4d8d7c267cbb5da50b9e9868) Thanks [@louistrue](https://github.com/louistrue)! - IfcAnnotation overlays now follow the model ([#8767](https://github.com/LTplus-AG/ifc-lite/issues/8767)). In 3D, annotation lines, filled regions and labels are clipped by the section plane, any extra cutting planes and the clip box, the same way the model's geometry is. A label disappears whole once its anchor is cut away. Clipping is opt-in with a new `sectionClipped` flag, default `false`, so existing callers see no change: as an option on `Renderer.setLineOverlay(channel, vertices, { sectionClipped })` (new `LineOverlayOptions` type) and as a field on `SymbolicFillInput` and `SymbolicTextInput`. The grid and the other reference layers still draw whole. In the viewer, annotations also respect isolation: isolating elements, soloing a storey or filtering by class now hides annotations outside that set, the same as it does for meshes.
+
+- [#8798](https://github.com/LTplus-AG/ifc-lite/pull/8798) [`2787019`](https://github.com/LTplus-AG/ifc-lite/commit/27870190d28396e8048d01918f6b8d9a6d06d36c) Thanks [@OxyzenDigital](https://github.com/OxyzenDigital)! - Section caps accept an optional per-polygon hatch (`CutPolygon2D.hatch`): each cut polygon can carry its own pattern, spacing, angles, width and stroke colour, and any field it omits falls back to `capStyle`. Without `hatch` the cap renders exactly as before ([#8753](https://github.com/LTplus-AG/ifc-lite/issues/8753)).
+
+- [#8801](https://github.com/LTplus-AG/ifc-lite/pull/8801) [`8719cdb`](https://github.com/LTplus-AG/ifc-lite/commit/8719cdbe0390c5f8c1df13e707037094a28e86e6) Thanks [@louistrue](https://github.com/louistrue)! - Zoom and orbit on large or outlier models answer from the last frame's depth under the cursor (`Renderer.probeSurface`) where the CPU raycast is gated: wheel, pinch and toolbar zoom stop short of the surface instead of flying through, and the orbit pivots on what is under the pointer ([#8769](https://github.com/LTplus-AG/ifc-lite/issues/8769)).
+
+- [#8743](https://github.com/LTplus-AG/ifc-lite/pull/8743) [`2b2a27a`](https://github.com/LTplus-AG/ifc-lite/commit/2b2a27a1873071e5e6f129ba0cdb8ffa7c3410cd) Thanks [@louistrue](https://github.com/louistrue)! - The internal, unqualified Gaussian adapter composes splats with transparent IFC by a nearest-glass split: splats behind the nearest transparent layer draw before it, the rest after it, per sample. This is exact where a sample has at most one transparent layer, and for splats behind or in front of every layer; splats between two layers stay approximate. It covers perspective and orthographic views, 1x and 4x MSAA, and every transparent draw path (including X-Ray ghosts). Frames without transparent IFC keep the single splat pass, and frames without visible splats record nothing extra. `GaussianSplatStats.composition` now reports the last splat frame (`nearest-glass-split`, `no-transparent`, or `over-transparent-approximate` with a fallback reason). Details are in the new `compositionReport`: whether a sample of that frame had two or more transparent layers, and whether the highlight or points, reference images and overlays drew after splats behind the glass. Those keep their established order after transparent IFC. A failed split pass falls back to one splat pass (`split-failed`). `gaussianSplats.setCompositionMode('single-pass')` keeps the old pass. Readiness stays `blocked`: the blocker tuple is unchanged, and the new capability is `nearest-glass-split`. Exports `GaussianComposition`, `GaussianCompositionFallback`, `GaussianCompositionMode`, `GaussianCompositionReport` and `GaussianTransparentLayers`.
+
+- [#8915](https://github.com/LTplus-AG/ifc-lite/pull/8915) [`0f57524`](https://github.com/LTplus-AG/ifc-lite/commit/0f57524cfe347d29d68f53df7fc97f0b1f80d61a) Thanks [@louistrue](https://github.com/louistrue)! - Add bounded CPU Gaussian placement export batches and PCD header inspection for positioned downloads. Preserve unsigned-byte point classifications when reading binary and ASCII PLY files, including streaming and variable-length rows. Keep unsupported classification declarations ignored for compatibility with existing files.
+  
+  Treat malformed optional ASCII byte classifications as unclassified so geometry remains loadable.
+
+### Patch Changes
+
+- [#8743](https://github.com/LTplus-AG/ifc-lite/pull/8743) [`2b2a27a`](https://github.com/LTplus-AG/ifc-lite/commit/2b2a27a1873071e5e6f129ba0cdb8ffa7c3410cd) Thanks [@louistrue](https://github.com/louistrue)! - Keep the Gaussian glass split enabled across expected visibility compilation, and contain layer readback failures while releasing mapped buffers and query slots.
+
+- [#8778](https://github.com/LTplus-AG/ifc-lite/pull/8778) [`d4e4533`](https://github.com/LTplus-AG/ifc-lite/commit/d4e4533046dc18eeb3eec1a838221c069cbe9ddb) Thanks [@louistrue](https://github.com/louistrue)! - Support whole-scene Gaussian render-frame translations without rewriting packed local rows or enlarging the precision envelope. Captures can follow a federation origin established after they load.
+
+- [#8825](https://github.com/LTplus-AG/ifc-lite/pull/8825) [`5560708`](https://github.com/LTplus-AG/ifc-lite/commit/5560708619c83ac2e52ac26ea1852477e7c03ad0) Thanks [@louistrue](https://github.com/louistrue)! - Avoid reporting expected teardown failures as errors in the nearest-glass split: a layer-count readback aborted, or a depth-variant pipeline compile rejected, because the renderer was destroyed. The same failures while the renderer is live are still reported.
+
+- [#8743](https://github.com/LTplus-AG/ifc-lite/pull/8743) [`2b2a27a`](https://github.com/LTplus-AG/ifc-lite/commit/2b2a27a1873071e5e6f129ba0cdb8ffa7c3410cd) Thanks [@louistrue](https://github.com/louistrue)! - Reset Gaussian composition reporting when renderer resources are released after device loss, teardown or rebuild.
+
+- [#8743](https://github.com/LTplus-AG/ifc-lite/pull/8743) [`2b2a27a`](https://github.com/LTplus-AG/ifc-lite/commit/2b2a27a1873071e5e6f129ba0cdb8ffa7c3410cd) Thanks [@louistrue](https://github.com/louistrue)! - Stop encoding splats after a split-frame failure and request a sticky single-pass redraw until device recovery or renderer rebuild. Report the failed frame as possibly incomplete.
+
+- [#8895](https://github.com/LTplus-AG/ifc-lite/pull/8895) [`dcc0bda`](https://github.com/LTplus-AG/ifc-lite/commit/dcc0bdac03d03e81a75840497e8c11c4263a1287) Thanks [@louistrue](https://github.com/louistrue)! - Make owned annotation lines, fills and text labels pickable through both GPU and large-model CPU selection. Preserve clipping, visibility, camera-relative precision and upload lifecycle semantics. Anchored line partitions accept one `ownerIds` entry per segment; symbolic fill and text inputs accept `ownerId`.
+- Updated dependencies [[`aca42e7`](https://github.com/LTplus-AG/ifc-lite/commit/aca42e7780691e2b6325e77ada6736233a739b1e)]:
+  - @ifc-lite/geometry@8.1.1
+
 ## 7.1.0
 
 ### Minor Changes

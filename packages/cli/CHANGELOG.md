@@ -1,5 +1,15 @@
 # @ifc-lite/cli
 
+## 0.45.2
+
+### Patch Changes
+
+- [#8912](https://github.com/LTplus-AG/ifc-lite/pull/8912) [`eb08c09`](https://github.com/LTplus-AG/ifc-lite/commit/eb08c09ac7aeabaa06a09c916c957f979a57cecf) Thanks [@louistrue](https://github.com/louistrue)! - Avoid the Node 24 V8 WASM code-reclamation crash during retained exports by disabling code GC in the short-lived export process. Contain retained OBJ export crashes in a child process and publish staged output only after successful termination. Report process failures with their signal or exit code while preserving existing destination files.
+- Updated dependencies [[`aca42e7`](https://github.com/LTplus-AG/ifc-lite/commit/aca42e7780691e2b6325e77ada6736233a739b1e)]:
+  - @ifc-lite/cache@3.7.5
+  - @ifc-lite/geometry@8.1.1
+  - @ifc-lite/ifcx@4.6.1
+
 ## 0.45.1
 
 ### Patch Changes

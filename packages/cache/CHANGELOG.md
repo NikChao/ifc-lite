@@ -1,5 +1,13 @@
 # @ifc-lite/cache
 
+## 3.7.5
+
+### Patch Changes
+
+- [#8896](https://github.com/LTplus-AG/ifc-lite/pull/8896) [`aca42e7`](https://github.com/LTplus-AG/ifc-lite/commit/aca42e7780691e2b6325e77ada6736233a739b1e) Thanks [@louistrue](https://github.com/louistrue)! - Correct colour metadata documentation: apparent colour uses SurfaceColour and numeric diffuse factors; shadingColor carries a distinct authored RGB DiffuseColour. Runtime processing and cache encoding are unchanged.
+- Updated dependencies [[`aca42e7`](https://github.com/LTplus-AG/ifc-lite/commit/aca42e7780691e2b6325e77ada6736233a739b1e)]:
+  - @ifc-lite/geometry@8.1.1
+
 ## 3.7.4
 
 ### Patch Changes
