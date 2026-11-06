@@ -10,7 +10,7 @@
 //! those four in step, the same shape as `parquet_layout.rs`.
 
 use super::slots::RootSlots;
-use super::types::DataModel;
+use super::types::{DataModel, EntityJob, PropertySet, QuantitySet, Relationship};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Which STEP instances the data model's entities table carries.
@@ -178,3 +178,78 @@ fn referenced_ids(data_model: &DataModel) -> FxHashSet<u32> {
 #[cfg(test)]
 #[path = "rooted_tests.rs"]
 mod tests;
+
+/// The jobs whose metadata a `DataModelEntities::Rooted` extraction still has
+/// to build, so the rest are never materialised.
+///
+/// [`retain_rooted_entities`] decides with the extracted row, which knows
+/// whether a GlobalId was actually present. Here only the type name is known,
+/// so the test is deliberately WIDER in one place: a type the IFC4 registry
+/// does not list is kept, because for those the extracted GlobalId is the only
+/// evidence there is and dropping them here would lose rows the post-filter
+/// would have kept. Running `retain_rooted_entities` afterwards applies the
+/// exact rule to the much smaller table, so the two paths agree.
+///
+/// Vendor extensions are the realistic unknown type and they are rare; a file
+/// made entirely of them simply costs what the unfiltered path costs today.
+pub(crate) fn metadata_jobs<'a>(
+    entities: DataModelEntities,
+    all_entities: &'a [EntityJob<'a>],
+    property_sets: &[PropertySet],
+    quantity_sets: &[QuantitySet],
+    relationships: &[Relationship],
+) -> Vec<EntityJob<'a>> {
+    if entities == DataModelEntities::All {
+        return all_entities.to_vec();
+    }
+
+    let referenced = referenced_by_tables(property_sets, quantity_sets, relationships);
+    // Types are few (hundreds) and rows are many (millions), so the registry
+    // lookup runs once per type rather than once per row.
+    let mut keep_type: FxHashMap<&str, bool> = FxHashMap::default();
+    all_entities
+        .iter()
+        .filter(|job| {
+            if referenced.contains(&job.id) {
+                return true;
+            }
+            if let Some(&keep) = keep_type.get(job.type_name) {
+                return keep;
+            }
+            let keep = match RootSlots::for_type(job.type_name) {
+                Some(slots) => slots.global_id.is_some(),
+                None => true,
+            };
+            keep_type.insert(job.type_name, keep);
+            keep
+        })
+        .copied()
+        .collect()
+}
+
+/// Every entity id the small tables point at, the ids
+/// [`referenced_ids`] collects before the entities table exists.
+fn referenced_by_tables(
+    property_sets: &[PropertySet],
+    quantity_sets: &[QuantitySet],
+    relationships: &[Relationship],
+) -> FxHashSet<u32> {
+    let mut ids = FxHashSet::default();
+    let mut add = |id: u32| {
+        if id != 0 {
+            ids.insert(id);
+        }
+    };
+    for set in property_sets {
+        add(set.pset_id);
+    }
+    for set in quantity_sets {
+        add(set.qset_id);
+    }
+    for relationship in relationships {
+        add(relationship.rel_id);
+        add(relationship.relating_id);
+        add(relationship.related_id);
+    }
+    ids
+}

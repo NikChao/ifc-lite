@@ -50,6 +50,26 @@ pub fn extract_data_model<T>(content: &T) -> DataModel
 where
     T: AsRef<[u8]> + ?Sized,
 {
+    extract_data_model_with(content, DataModelEntities::All)
+}
+
+/// Extract the data model, building entity metadata only for the rows
+/// `entities` asks for.
+///
+/// [`DataModelEntities::Rooted`] narrows the table exactly as
+/// [`DataModelEntities::apply`] does, but it does so BEFORE the metadata is
+/// built rather than after. On a federated model that is the difference between
+/// 30.5M `EntityMetadata` rows -- six owned `String`s each -- and the ~225k a
+/// rooted client keeps: roughly 13 GiB of allocation for rows that were about
+/// to be dropped. A caller with a memory ceiling (a Lambda, a browser tab)
+/// cannot afford the peak even though it can afford the result.
+///
+/// The output matches `extract_data_model` followed by `apply`, so the two
+/// paths stay interchangeable.
+pub fn extract_data_model_with<T>(content: &T, entities_variant: DataModelEntities) -> DataModel
+where
+    T: AsRef<[u8]> + ?Sized,
+{
     let content = content.as_ref();
     let extract_start = std::time::Instant::now();
     tracing::info!(
@@ -106,20 +126,28 @@ where
     // upload this used to make (up to `MAX_FILE_SIZE_MB`, on top of the parse
     // running beside it) bought nothing (#7676, SERVER-11).
     let buckets = JobBuckets::new(&all_entities);
-    let (entities, ((property_sets, quantity_sets), relationships)) = rayon::join(
-        || extract_entity_metadata(&all_entities, content, &entity_index),
+    let ((property_sets, quantity_sets), relationships) = rayon::join(
         || {
             rayon::join(
-                || {
-                    rayon::join(
-                        || extract_properties(&buckets.property_sets, content, &entity_index),
-                        || extract_quantities(&buckets.quantity_sets, content, &entity_index),
-                    )
-                },
-                || extract_relationships(&all_entities, content, &entity_index),
+                || extract_properties(&buckets.property_sets, content, &entity_index),
+                || extract_quantities(&buckets.quantity_sets, content, &entity_index),
             )
         },
+        || extract_relationships(&all_entities, content, &entity_index),
     );
+
+    // The other tables run first because they name the non-rooted entities a
+    // rooted table still has to carry, so no relation dangles. Only then is it
+    // known which jobs need metadata -- which is what lets the Rooted variant
+    // skip building the rest.
+    let metadata_jobs = rooted::metadata_jobs(
+        entities_variant,
+        &all_entities,
+        &property_sets,
+        &quantity_sets,
+        &relationships,
+    );
+    let entities = extract_entity_metadata(&metadata_jobs, content, &entity_index);
 
     // Extract length unit scale (e.g., 0.001 for millimeters) from the model's
     // project, found by the one locator. Data path: main's value, never a
@@ -187,8 +215,9 @@ where
         "Data model extraction complete"
     );
 
-    DataModel {
+    let mut model = DataModel {
         entities,
+        total_entities,
         property_sets,
         quantity_sets,
         relationships,
@@ -197,7 +226,16 @@ where
         documents,
         spatial_hierarchy,
         refused,
-    }
+    };
+
+    // `metadata_jobs` filters on the type name alone, which is all it has
+    // before the rows exist, so it deliberately over-keeps: any type the IFC4
+    // registry does not list is built in case it carries a GlobalId. The exact
+    // rule needs the extracted row, so it runs here -- on the small table
+    // rather than on all 30.5M. Without this the two paths disagree: a
+    // federated model keeps 788k rows where `apply` keeps 225k.
+    entities_variant.apply(&mut model);
+    model
 }
 
 /// Debug-level census of the scanned jobs, to diagnose a model that extracts
