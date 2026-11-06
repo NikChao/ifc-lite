@@ -97,6 +97,13 @@ pub fn build_cache(source: &[u8], out: File, scratch: File) -> Result<BuildStats
     // On in the build the viewer's cache comes from, and it changes the mesh
     // count, so the cache matches only with it.
     request.layer_slicing = true;
+    // The geometry pass resolves property sets and presentation layers by
+    // default, for a viewer that wants them on the first frame. This writer
+    // wants neither: the Properties section is built from the data model, and
+    // the mesh record carries no layer. On a model with 474k property sets
+    // that resolution costs 5.9 GiB of a 10 GiB budget and changes not one of
+    // the 596,253 meshes.
+    request.features = request.features.properties(false).presentation_layers(false);
 
     let result = process(source, &request, &mut sink);
     let geometry_ms = geometry_started.elapsed().as_millis() as u64;
