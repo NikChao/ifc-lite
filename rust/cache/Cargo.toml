@@ -1,0 +1,14 @@
+[package]
+name = "ifc-lite-cache"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Writes the .ifclite binary cache the viewer loads."
+
+[dependencies]
+ifc-lite-processing.workspace = true
+# The geometry section deflate-raws each chunk above a size floor. Raw, i.e.
+# headerless, because that is what the reader's DecompressionStream expects.
+flate2 = "1.0"
