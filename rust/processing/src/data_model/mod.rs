@@ -70,6 +70,37 @@ pub fn extract_data_model_with<T>(content: &T, entities_variant: DataModelEntiti
 where
     T: AsRef<[u8]> + ?Sized,
 {
+    extract_data_model_tables(content, entities_variant, DataModelTables::default())
+}
+
+/// Which optional tables to build.
+///
+/// Property and quantity extraction reads every `IfcPropertySet` and
+/// `IfcElementQuantity` in the file and owns a `String` per value. A consumer
+/// that does not serve properties from this data model -- a cache writer whose
+/// format carries them elsewhere -- pays that for nothing: on a model with 474k
+/// property sets it is most of a 10 GiB budget.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DataModelTables {
+    pub properties: bool,
+    pub quantities: bool,
+}
+
+impl Default for DataModelTables {
+    fn default() -> Self {
+        Self { properties: true, quantities: true }
+    }
+}
+
+/// Extract the data model, building only the tables  asks for.
+pub fn extract_data_model_tables<T>(
+    content: &T,
+    entities_variant: DataModelEntities,
+    tables: DataModelTables,
+) -> DataModel
+where
+    T: AsRef<[u8]> + ?Sized,
+{
     let content = content.as_ref();
     let extract_start = std::time::Instant::now();
     tracing::info!(
@@ -129,8 +160,20 @@ where
     let ((property_sets, quantity_sets), relationships) = rayon::join(
         || {
             rayon::join(
-                || extract_properties(&buckets.property_sets, content, &entity_index),
-                || extract_quantities(&buckets.quantity_sets, content, &entity_index),
+                || {
+                    if tables.properties {
+                        extract_properties(&buckets.property_sets, content, &entity_index)
+                    } else {
+                        Vec::new()
+                    }
+                },
+                || {
+                    if tables.quantities {
+                        extract_quantities(&buckets.quantity_sets, content, &entity_index)
+                    } else {
+                        Vec::new()
+                    }
+                },
             )
         },
         || extract_relationships(&all_entities, content, &entity_index),

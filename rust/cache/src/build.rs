@@ -25,7 +25,9 @@ use std::fs::File;
 use std::io::{Result, Seek, SeekFrom, Write};
 use std::time::Instant;
 
-use ifc_lite_processing::data_model::{extract_data_model_with, DataModel, DataModelEntities};
+use ifc_lite_processing::data_model::{
+    extract_data_model_tables, DataModel, DataModelEntities, DataModelTables,
+};
 use ifc_lite_processing::{process, MeshData, MeshFrame, ProcessingRequest, ProcessingSink};
 
 use crate::coordinate_info::{Aabb, CoordinateInfo};
@@ -64,7 +66,16 @@ pub fn build_cache(source: &[u8], out: File, scratch: File) -> Result<BuildStats
     //
     // The variant is passed in rather than applied afterwards because building
     // the dropped rows is what exceeds the Lambda's memory, not keeping them.
-    let model = extract_data_model_with(source, DataModelEntities::Rooted);
+    // Properties and quantities are NOT extracted: `@ifc-lite/cache` writes both
+    // sections empty -- 16 bytes each, a count and three empty indexes -- so the
+    // viewer never reads them from here. Extracting them anyway costs most of
+    // the memory budget on a property-heavy model and produces bytes nothing
+    // loads.
+    let model = extract_data_model_tables(
+        source,
+        DataModelEntities::Rooted,
+        DataModelTables { properties: false, quantities: false },
+    );
     let total_entities = model.total_entities as u64;
     let parse_ms = parse_started.elapsed().as_millis() as u64;
 
