@@ -1,0 +1,24 @@
+[package]
+name = "ifc-lite-cache"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Writes the .ifclite binary cache the viewer loads."
+
+[dependencies]
+ifc-lite-processing.workspace = true
+# The geometry section deflate-raws each chunk above a size floor. Raw, i.e.
+# headerless, because that is what the reader's DecompressionStream expects.
+flate2 = "1.0"
+# The binary maps the source rather than reading it, so the bytes stay
+# file-backed and reclaimable, and reports its own peak.
+memmap2 = "0.9"
+libc = "0.2"
+
+# The binary the model cache Lambda spawns. Also the measurement tool: run it
+# without an output path and it reports what the pipeline costs.
+[[bin]]
+name = "ifc-build-cache"
+path = "src/bin/ifc-build-cache.rs"
