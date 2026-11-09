@@ -27,6 +27,12 @@ pub struct DataModel {
     pub documents: Vec<DocumentAssociation>,
     /// Spatial hierarchy data with nodes and lookup maps.
     pub spatial_hierarchy: SpatialHierarchyData,
+    /// STEP instances the scan saw, which is NOT `entities.len()` whenever the
+    /// table was narrowed: over `various/O-S1-BWK-BIM architectural` a rooted
+    /// table holds 211,716 rows for 4,411,807 instances. A consumer reporting
+    /// the model's size (a cache header, a census) wants this; one iterating
+    /// the table wants the rows.
+    pub total_entities: usize,
     /// Set when a table hit its size budget and extraction stopped filling it
     /// (#7675: material rows grow as elements x layers). Such a model cannot
     /// be served: `serialize_data_model_to_parquet`, the one way every route

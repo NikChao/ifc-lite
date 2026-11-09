@@ -4,7 +4,7 @@
 
 //! Tests for the rooted-only entities table (issue #6034).
 
-use super::super::{extract_data_model, DataModel, EntityMetadata};
+use super::super::{extract_data_model, extract_data_model_with, DataModel, EntityMetadata};
 use super::{retain_rooted_entities, DataModelEntities};
 use std::collections::BTreeSet;
 
@@ -175,4 +175,48 @@ fn issue_6034_rooted_resolves_every_relation_on_a_real_model() {
         rooted.entities.len(),
         full.entities.len()
     );
+}
+
+/// The pre-filtered path builds the SAME table the post-filtered one does.
+///
+/// Every test above goes through `extract_data_model` + `apply`, so none of
+/// them exercises `metadata_jobs`, which decides from the type name alone
+/// before any row exists. This asserts the equivalence directly, because that
+/// equivalence is the whole contract of the filtered path: it is only ever a
+/// cheaper way to reach the same table.
+///
+/// The case that broke it, and the reason this test names a real model: the
+/// materials table points at `IfcMaterial` rows by `definition_id` and
+/// `material_id`. Those rows carry no GlobalId and no other table names them,
+/// so while the association pass still ran AFTER `metadata_jobs`, they were
+/// dropped before anything could know they were referenced -- 24 such rows in
+/// this fixture, 88 in `ara3d/ISSUE_068_ARK_NUS_skolebygg.ifc`. The entities
+/// table then failed to describe ids its own materials table pointed at.
+#[test]
+fn rooted_prefilter_builds_the_same_table_as_the_post_filter() {
+    let content = ifc_lite_testkit::fixture_bytes_or_skip!("ara3d/AC20-FZK-Haus.ifc");
+    for source in [MIXED_IFC.as_bytes(), content.as_ref()] {
+        let mut post = extract_data_model(source);
+        DataModelEntities::Rooted.apply(&mut post);
+        let pre = extract_data_model_with(source, DataModelEntities::Rooted);
+        assert_eq!(
+            serde_json::to_value(&pre.entities).unwrap(),
+            serde_json::to_value(&post.entities).unwrap(),
+            "the pre-filtered and post-filtered tables differ"
+        );
+    }
+}
+
+/// The filtered path still resolves every relation: nothing the other tables
+/// name is missing from the entities table it built. `retain_rooted_entities`
+/// guarantees this for the post-filter; the pre-filter has to be checked on
+/// its own, because it is a different decision made from less information.
+#[test]
+fn rooted_prefilter_leaves_no_relation_dangling() {
+    let content = ifc_lite_testkit::fixture_bytes_or_skip!("ara3d/AC20-FZK-Haus.ifc");
+    let model = extract_data_model_with(&content, DataModelEntities::Rooted);
+    let kept = ids(&model.entities);
+    let named = ids_other_tables_name(&model);
+    let dangling: Vec<u32> = named.difference(&kept).copied().collect();
+    assert!(dangling.is_empty(), "relations name dropped ids: {dangling:?}");
 }
