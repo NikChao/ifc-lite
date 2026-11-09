@@ -661,7 +661,7 @@ dependencies = [
  "futures",
  "hex",
  "libc",
- "memmap2",
+ "memmap2 0.5.10",
  "miette",
  "reflink-copy",
  "serde",
@@ -1539,6 +1539,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d3067d79b975e8844ca9eb072e16b31c3c1c36928edf9c6789548c524d0d954"
 
 [[package]]
+name = "ifc-lite-cache"
+version = "28.2.0"
+dependencies = [
+ "flate2",
+ "ifc-lite-processing",
+ "libc",
+ "memmap2 0.9.12",
+]
+
+[[package]]
 name = "ifc-lite-clash"
 version = "28.2.0"
 
@@ -2029,6 +2039,15 @@ name = "memmap2"
 version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83faa42c0a078c393f6b29d5db232d8be22776a891f8f56e5284faee4a20b327"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "memmap2"
+version = "0.9.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b0ca1155a9ecc25aa12e8313a119f32edf0255fea2f44839c4ac0a12b2ac157"
 dependencies = [
  "libc",
 ]
